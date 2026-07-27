@@ -138,24 +138,26 @@ def check_limits(text):
             print(f"  {name}: {n}")
 
 
-REQUIRED = [
-    ("设问反问", r"呢[，。？]|吗？|怎么选？|什么是", 2),
-    ("语气词", r"呢|吧|哦|~", 3),
-    ("人群称谓", r"姐妹|集美|星人|美眉", 4),
-    ("柔化建议词", r"不妨|不如|试试|可以大胆", 2),
-    ("效果动词", r"显瘦|显高|显白|显腿长|减龄|遮肉|提亮|显高挑", 4),
-    ("量词具象", r"(?:\d+|[一二三四五六七八九十两半几])+\s*(?:厘米|公分|cm|CM|度|条|水|年|码|指)|⭐", 2),
+# 配料只作参考计数，一律不判 FAIL。
+# 原则：上限保留（拦"过了"），下限放松（不逼"凑够"）。
+# 逼着凑够下限，写出来的每篇都含同样的配料，反而成了新的固定结构。
+FLAVOR = [
+    ("设问反问", r"呢[，。？]|吗？|怎么选？|什么是"),
+    ("语气词", r"呢|吧|哦|~"),
+    ("人群称谓", r"姐妹|集美|星人|美眉"),
+    ("柔化建议词", r"不妨|不如|试试|可以大胆"),
+    ("效果动词", r"显瘦|显高|显白|显腿长|减龄|遮肉|提亮|显高挑"),
+    ("量词具象", r"(?:\d+|[一二三四五六七八九十两半几])+\s*(?:厘米|公分|cm|CM|度|条|水|年|码|指)|⭐"),
 ]
 
 
-def check_required(text):
+def check_flavor(text):
+    """报数供参考，大致有就行。全项为 0 才提醒一句，说明整篇没有S姐的语气。"""
     body = strip_marks(text)
-    for name, pat, lo in REQUIRED:
-        n = len(re.findall(pat, body))
-        if n < lo:
-            fail(f"配料「{name}」仅 {n} 处，下限 {lo}")
-        else:
-            print(f"  {name}: {n}")
+    counts = {name: len(re.findall(pat, body)) for name, pat in FLAVOR}
+    print("  配料(参考): " + "  ".join(f"{k} {v}" for k, v in counts.items()))
+    if sum(counts.values()) == 0:
+        warn("六项配料一处都没有，通篇可能不是S姐在说话，回去读一遍范文")
 
 
 def check_headings(text):
@@ -231,7 +233,7 @@ def main():
     check_para_variance(text)
     check_openers(text)
     check_limits(text)
-    check_required(text)
+    check_flavor(text)
     check_banned(text)
     check_headings(text)
     check_ending(text)
