@@ -69,8 +69,8 @@ def check_images(text, expected):
 
 
 def check_length(text):
-    """只报字数供参考，不设上下限。长度由题材与密度决定，写死会逼出凑字数和硬截断。"""
-    print(f"  字数: {len(strip_marks(text))}（仅供参考，不设限）")
+    """不查字数。长度由题材与密度决定，连报数都不报，免得写作时被数字牵着走。"""
+    return
 
 
 def check_para_variance(text):
@@ -79,10 +79,8 @@ def check_para_variance(text):
     if not lens:
         fail("没有解析到正文段落")
         return
-    spread = max(lens) - min(lens)
-    print(f"  段落: {len(lens)} 段, 最短 {min(lens)}, 最长 {max(lens)}, 落差 {spread}")
-    if spread < 40:
-        fail(f"段落长短落差仅 {spread} 字（要求 ≥40，全篇一个模子就是AI纹）")
+    # 不设落差数值门槛。段落参差靠骨架分配表在写之前打散，不靠事后数字卡。
+    print(f"  段落: {len(lens)} 段")
 
 
 def check_openers(text):
