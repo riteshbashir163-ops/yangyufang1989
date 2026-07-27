@@ -69,12 +69,8 @@ def check_images(text, expected):
 
 
 def check_length(text):
-    n = len(strip_marks(text))
-    print(f"  字数: {n}")
-    if n < 1200:
-        fail(f"字数 {n} 低于下限 1200")
-    elif n > 1800:
-        fail(f"字数 {n} 超过上限 1800（每图配文压到 40~70 字）")
+    """只报字数供参考，不设上下限。长度由题材与密度决定，写死会逼出凑字数和硬截断。"""
+    print(f"  字数: {len(strip_marks(text))}（仅供参考，不设限）")
 
 
 def check_para_variance(text):
@@ -84,12 +80,9 @@ def check_para_variance(text):
         fail("没有解析到正文段落")
         return
     spread = max(lens) - min(lens)
-    over = [(n, p[:20]) for n, p in zip(lens, paras) if n > 100]
     print(f"  段落: {len(lens)} 段, 最短 {min(lens)}, 最长 {max(lens)}, 落差 {spread}")
     if spread < 40:
         fail(f"段落长短落差仅 {spread} 字（要求 ≥40，全篇一个模子就是AI纹）")
-    if over:
-        warn(f"超 100 字的段落 {len(over)} 处（每图配文建议 40~70 字）: {over[:3]}")
 
 
 def check_openers(text):
