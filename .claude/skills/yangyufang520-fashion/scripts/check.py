@@ -79,7 +79,7 @@ def check_para_variance(text):
     if not lens:
         fail("没有解析到正文段落")
         return
-    # 不设落差数值门槛。段落参差靠骨架分配表在写之前打散，不靠事后数字卡。
+    # 不设落差数值门槛。段落参差靠内容本身的差异长出来，不靠事后数字卡。
     print(f"  段落: {len(lens)} 段")
 
 
@@ -92,7 +92,7 @@ def check_openers(text):
             fail(f"相邻段落起手词重复「{heads[i]}」: 第 {i} 段与第 {i+1} 段")
     dup = [h for h, c in Counter(heads).items() if c >= 3]
     if dup:
-        warn(f"起手词全篇出现 3 次以上: {dup}（换骨架，见 sentence-skeletons.md）")
+        warn(f"起手词全篇出现 3 次以上: {dup}（同一个开口反复用，换个说法）")
 
 
 BANNED = {
@@ -168,12 +168,60 @@ def check_headings(text):
                 fail(f"小标题带效果承诺尾巴: {h}")
 
 
+SIGNATURE_OPENERS = [
+    "可能有人要问", "跟", "颜色上", "若是", "换成", "除了",
+    "或者", "要不就是", "另外", "只是这种", "比起", "同样",
+]
+
+
+def check_cross_article(text, prev_path):
+    """跟上一篇成稿比对起手词，防止篇与篇之间撞模板。"""
+    try:
+        prev = load(prev_path)
+    except OSError:
+        warn(f"未找到上一篇 {prev_path}，跨篇查重已跳过")
+        return
+
+    def sigs(t):
+        out = set()
+        for p in paragraphs(t):
+            for s in SIGNATURE_OPENERS:
+                if p.startswith(s):
+                    out.add(s)
+        return out
+
+    dup = sigs(text) & sigs(prev)
+    if dup:
+        fail(
+            f"与上一篇撞起手词 {sorted(dup)}（共 {len(dup)} 个）。"
+            f"这些是标志性起手，连着两篇用同一个，整个号会像同一台机器印的"
+        )
+    else:
+        print("  跨篇起手词: 与上一篇零重复")
+
+
+def check_ending(text):
+    ps = paragraphs(text)
+    if not ps:
+        return
+    last = re.sub(r"\s", "", ps[-1])
+    print(f"  结尾段: {len(last)} 字")
+    if len(last) > 90:
+        fail(f"结尾段 {len(last)} 字，超过范文最长的 89 字，宁短不长")
+    # 倒数第二段若也在收尾（不含具体单品、只讲道理），提示可能写成了两段式
+    if len(ps) >= 2:
+        second = re.sub(r"\s", "", ps[-2])
+        if len(second) < 60 and not re.search(r"配|穿|搭|件|条|双|色", second):
+            warn("倒数第二段像是在收尾，检查是否写成了「升华段+号召段」两段式")
+
+
 def main():
     if len(sys.argv) < 2:
         print(__doc__)
         sys.exit(2)
     path = sys.argv[1]
     expected = int(sys.argv[2]) if len(sys.argv) > 2 else 0
+    prev_path = sys.argv[3] if len(sys.argv) > 3 else None
     text = load(path)
 
     print(f"\n检查 {path}")
@@ -186,6 +234,11 @@ def main():
     check_required(text)
     check_banned(text)
     check_headings(text)
+    check_ending(text)
+    if prev_path:
+        check_cross_article(text, prev_path)
+    else:
+        warn("未传上一篇路径，跨篇起手词查重未执行（用法：check.py 本篇.md 图数 上一篇.md）")
 
     print("-" * 46)
     for w in WARN:
