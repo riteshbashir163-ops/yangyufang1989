@@ -212,6 +212,31 @@ def check_register(text):
         )
 
 
+# 数字写法。范文实测：具体的年份、年代、年龄、测量值一律阿拉伯数字
+# （60岁 / 70岁 / 70年代 / 3厘米 / 2到3公分 / 4cm / 18种 / 5倍 / 19倍 / 3~4℃），
+# 汉字数字只用于虚指（一分 / 三种 / 两年 / 十分 / 零分）。
+# 真实翻车：连着三篇写"一九九三年""一九〇二年""二〇〇三年"，被作者点名。
+# 病根是"觉得汉字数字更文气"，拿自己想象的文艺腔替换了她真实的书写习惯。
+NUMERALS = [
+    ("年份写成汉字", r"[一二三四五六七八九〇零]{4}年"),
+    ("年代写成汉字", r"[一二三四五六七八九十]{2,3}年代"),
+    ("年龄写成汉字", r"[一二三四五六七八九十]{2,3}岁"),
+    ("长度写成汉字", r"[一二三四五六七八九十两]{1,3}(?:厘米|公分)"),
+    ("温度写成汉字", r"[一二三四五六七八九十两]{2,3}度(?!假)"),
+]
+
+
+def check_numerals(text):
+    body = strip_marks(text)
+    for name, pat in NUMERALS:
+        hits = re.findall(pat, body)
+        if hits:
+            fail(
+                f"{name}: {hits[:3]}。范文里具体的年份、年龄、尺寸一律用阿拉伯数字"
+                f"（60岁／70年代／3厘米／2到3公分），汉字数字只留给虚指（一分／三种）"
+            )
+
+
 def check_limits(text):
     body = norm(strip_marks(text))
     for name, pat, lo, hi in LIMITS:
@@ -322,6 +347,7 @@ def main():
     check_opening(text)
     check_openers(text)
     check_register(text)
+    check_numerals(text)
     check_limits(text)
     check_flavor(text)
     check_banned(text)
