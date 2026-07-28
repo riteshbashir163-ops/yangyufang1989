@@ -27,8 +27,11 @@ def load(path):
 
 def norm(text):
     """全角半角标点统一后再做模式匹配。
-    真实事故：快板正则只写了全角逗号，而成稿全用半角，检测整整失效了两篇。"""
-    return text.replace("，", ",").replace("。", ".").replace("、", ",")
+    真实事故：快板正则只写了全角逗号、配料正则只写了全角问号，而成稿全用半角，
+    两处检测各自空转了好几篇。凡是含标点的正则，一律先过这里。"""
+    for a, b in [("，", ","), ("。", "."), ("、", ","), ("？", "?"), ("！", "!"), ("；", ";")]:
+        text = text.replace(a, b)
+    return text
 
 
 def strip_marks(text):
@@ -253,7 +256,7 @@ def check_limits(text):
 # 原则：上限保留（拦"过了"），下限放松（不逼"凑够"）。
 # 逼着凑够下限，写出来的每篇都含同样的配料，反而成了新的固定结构。
 FLAVOR = [
-    ("设问反问", r"呢[，。？]|吗？|怎么选？|什么是"),
+    ("设问反问", r"呢[,.?]|吗\?|怎么办\?|怎么搭\?|怎么选\?|什么是"),
     ("语气词", r"呢|吧|哦|~"),
     ("人群称谓", r"姐妹|集美|星人|美眉"),
     ("柔化建议词", r"不妨|不如|试试|可以大胆"),
@@ -264,7 +267,7 @@ FLAVOR = [
 
 def check_flavor(text):
     """报数供参考，大致有就行。全项为 0 才提醒一句，说明整篇没有S姐的语气。"""
-    body = strip_marks(text)
+    body = norm(strip_marks(text))
     counts = {name: len(re.findall(pat, body)) for name, pat in FLAVOR}
     print("  配料(参考): " + "  ".join(f"{k} {v}" for k, v in counts.items()))
     if sum(counts.values()) == 0:
