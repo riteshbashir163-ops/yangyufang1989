@@ -93,6 +93,31 @@ def check_para_variance(text):
     print(f"  段落: {len(lens)} 段")
 
 
+OPENING_AVG_MAX = 60  # 16 篇范文开篇平均 39 字/段，最长的文章2 也只有 55
+
+
+def check_opening(text):
+    """开篇段落密度。16 篇实测 13~55 字/段，写成百字大段就不是 S姐 的呼吸了。
+    真实翻车：开篇写成 3 个 115 字的大段讲原理，被判"开篇很烂，没有意境"。"""
+    head = text.split("\n## ")[0]
+    ps = [p for p in paragraphs(head)]
+    if not ps:
+        fail("解析不到开篇段落")
+        return
+    lens = [len(re.sub(r"\s", "", p)) for p in ps]
+    avg = sum(lens) // len(lens)
+    print(f"  开篇: {len(ps)} 段，平均 {avg} 字/段（范文 13~55）")
+    if avg > OPENING_AVG_MAX:
+        fail(
+            f"开篇平均 {avg} 字/段，超过 {OPENING_AVG_MAX}（范文最密的也只有 55）。"
+            f"把大段拆开，S姐 的开篇是一段一两句、七八段流水淌下来的"
+        )
+    # 功能性比喻 = 讲原理，不是抒情。抒情对象必须是颜色/单品本身
+    dry = re.findall(r"反光板|原理|色彩学|视觉重心|之所以|原因在于|道理很简单", head)
+    if dry:
+        fail(f"开篇出现讲原理的词 {dry[:3]}，抒情对象要是单品和颜色本身，不是穿搭机理")
+
+
 def check_openers(text):
     """相邻段落起手词不得重复"""
     paras = paragraphs(text)
@@ -243,6 +268,7 @@ def main():
     check_images(text, expected)
     check_length(text, expected)
     check_para_variance(text)
+    check_opening(text)
     check_openers(text)
     check_limits(text)
     check_flavor(text)
