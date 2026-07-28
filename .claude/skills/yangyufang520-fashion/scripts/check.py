@@ -70,19 +70,17 @@ def check_images(text, expected):
     print(f"  图片: {len(nums)} 张")
 
 
-CEILING = 1700  # 16 篇范文实测 954~1689 字，超了就是兑水
+CEILING = 2000  # 作者指定的硬上限。范文实测 954~1689，留出余量，不抠精确字数
 
 
 def check_length(text, images=0):
-    """只查上限，不查下限。下限逼的是凑字，上限拦的是兑水。"""
+    """只查上限，不查下限，也不追求贴着上限写。
+    下限逼的是凑字，精确字数逼的是硬截断，两个都不要，只拦"放开了写"。"""
     n = len(strip_marks(text))
     per = f"，每图约 {n // images} 字" if images else ""
-    print(f"  正文: {n} 字{per}（范文 954~1689）")
+    print(f"  正文: {n} 字{per}（上限 {CEILING}，范文实测 954~1689）")
     if n > CEILING:
-        fail(
-            f"正文 {n} 字，超出上限 {CEILING}（范文最长的文章8 配 17 图也只有 1689 字）。"
-            f"先砍到 {CEILING} 以内再谈别的"
-        )
+        fail(f"正文 {n} 字，超出上限 {CEILING}，砍到 {CEILING} 以内即可，不必抠到某个数")
 
 
 def check_para_variance(text):
