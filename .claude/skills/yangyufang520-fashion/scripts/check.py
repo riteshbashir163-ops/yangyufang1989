@@ -25,6 +25,12 @@ def load(path):
     return open(path, encoding="utf-8").read()
 
 
+def norm(text):
+    """全角半角标点统一后再做模式匹配。
+    真实事故：快板正则只写了全角逗号，而成稿全用半角，检测整整失效了两篇。"""
+    return text.replace("，", ",").replace("。", ".").replace("、", ",")
+
+
 def strip_marks(text):
     """去掉图片标记、主标题、markdown 标记符、空白，用于字数统计。
     小标题的文字要算（范文里小标题就是正文行），但 ## 这几个符号不算。"""
@@ -157,12 +163,54 @@ def check_banned(text):
 LIMITS = [
     ("S姐自称", r"S姐", 2, 3),
     ("刚好/正好家族", r"刚好|正好|刚刚好", 0, 2),
-    ("快板一+动词", r"一[挎踩戴挂拎系压提收垂撞折]，", 0, 2),
+    ("快板一+动词", r"一[挎踩戴挂拎系压提收垂撞折],", 0, 2),
 ]
+
+# "X一动词，Y就怎样" 的机灵句。抛个梗给个响，收在一个结果上，是短视频文案的节奏。
+# 实测：16 篇范文 0 处（正则的 3 个命中全是误伤），被作者点名的低级句全在这个模子里。
+QUIP = r"[^,.]{1,6}一[^,.]{1,2}[,][^,.]{0,8}就"
+
+# S姐 的"高级"就是靠这批词撑的，实测 7.7 处/千字，平均每 130 字落一个。
+# 她的句子收在评价词上（恰到好处/别样的腔调/干练又撩人），不收在结果和俏皮话上。
+QUALITY = (
+    # 气质格调类
+    r"高级|知性|优雅|雅致|从容|慵懒|清爽|得体|风度|隽永|矜贵|文气|书卷|闲情|悠然|"
+    r"大气|潇洒|精致|端庄|温婉|松弛|利落|干练|耐看|恰到好处|腔调|品味|气息|韵味|"
+    # 颜色与情致类（文章9 走的是这一路，缺了它整篇会被误判）
+    r"浪漫|纯真|柔美|娇嫩|清新|温柔|甜美|典雅|贵气|摩登|时髦|风情|俏丽|纯净|纯粹|"
+    r"淡雅|脱俗|洒脱|复古|明媚|沉静|轻盈|文雅|养眼|清透|舒服|和谐|随性|自在"
+)
+# 每千字。16 篇实测 10.3~34.3，均值 19.5，这里只要求 8，仍低于每一篇范文。
+# 定这么松是因为它不是"配料"，凑不出来，只能真的换一种语言去写。
+QUALITY_FLOOR = 8.0
+
+
+def check_register(text):
+    """语言register。这两项是"像不像S姐"的分水岭，比任何配料都重要。"""
+    body = norm(strip_marks(text))
+    k = len(body) / 1000 or 1
+
+    quips = re.findall(QUIP, body)
+    print(f"  机灵句: {len(quips)} 处（范文 0 处）")
+    if len(quips) > 1:
+        fail(
+            f"机灵句 {len(quips)} 处 {[q.strip() for q in quips[:3]]}。"
+            f"「X一动词，Y就怎样」是短视频文案的抛梗节奏，16 篇范文一处都没有。"
+            f"改成流水长句，收在评价词上"
+        )
+
+    q = len(re.findall(QUALITY, body))
+    print(f"  气质评价词: {q} 处 = {q / k:.1f}/千字（范文 10.3~34.3）")
+    if q / k < QUALITY_FLOOR:
+        fail(
+            f"气质评价词仅 {q / k:.1f}/千字，低于 {QUALITY_FLOOR}（范文最低的也有 10.3）。"
+            f"S姐 的高级感就是这批词撑起来的，句子要收在「知性潇洒」「别样的腔调」"
+            f"「恰到好处」上，不收在「毛病没了」「处得来」这类结果和俏皮话上"
+        )
 
 
 def check_limits(text):
-    body = strip_marks(text)
+    body = norm(strip_marks(text))
     for name, pat, lo, hi in LIMITS:
         n = len(re.findall(pat, body))
         if n < lo:
@@ -270,6 +318,7 @@ def main():
     check_para_variance(text)
     check_opening(text)
     check_openers(text)
+    check_register(text)
     check_limits(text)
     check_flavor(text)
     check_banned(text)
