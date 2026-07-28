@@ -26,9 +26,11 @@ def load(path):
 
 
 def strip_marks(text):
-    """去掉图片标记、主标题、空白，用于字数统计"""
+    """去掉图片标记、主标题、markdown 标记符、空白，用于字数统计。
+    小标题的文字要算（范文里小标题就是正文行），但 ## 这几个符号不算。"""
     t = re.sub(r"【图\d+】", "", text)
     t = "\n".join(l for l in t.split("\n") if not l.startswith("# "))
+    t = re.sub(r"^#+\s*", "", t, flags=re.M)
     return re.sub(r"\s", "", t)
 
 
@@ -68,9 +70,19 @@ def check_images(text, expected):
     print(f"  图片: {len(nums)} 张")
 
 
-def check_length(text):
-    """不查字数。长度由题材与密度决定，连报数都不报，免得写作时被数字牵着走。"""
-    return
+CEILING = 1700  # 16 篇范文实测 954~1689 字，超了就是兑水
+
+
+def check_length(text, images=0):
+    """只查上限，不查下限。下限逼的是凑字，上限拦的是兑水。"""
+    n = len(strip_marks(text))
+    per = f"，每图约 {n // images} 字" if images else ""
+    print(f"  正文: {n} 字{per}（范文 954~1689）")
+    if n > CEILING:
+        fail(
+            f"正文 {n} 字，超出上限 {CEILING}（范文最长的文章8 配 17 图也只有 1689 字）。"
+            f"先砍到 {CEILING} 以内再谈别的"
+        )
 
 
 def check_para_variance(text):
@@ -203,18 +215,20 @@ def check_cross_article(text, prev_path):
 
 
 def check_ending(text):
+    """结尾 1~2 段都合法（文章13、16 就是两段）。不卡字数，只拦升华腔。"""
     ps = paragraphs(text)
     if not ps:
         return
     last = re.sub(r"\s", "", ps[-1])
     print(f"  结尾段: {len(last)} 字")
-    if len(last) > 90:
-        fail(f"结尾段 {len(last)} 字，超过范文最长的 89 字，宁短不长")
-    # 倒数第二段若也在收尾（不含具体单品、只讲道理），提示可能写成了两段式
-    if len(ps) >= 2:
-        second = re.sub(r"\s", "", ps[-2])
-        if len(second) < 60 and not re.search(r"配|穿|搭|件|条|双|色", second):
-            warn("倒数第二段像是在收尾，检查是否写成了「升华段+号召段」两段式")
+    tail = "".join(re.sub(r"\s", "", p) for p in ps[-2:])
+    lofty = re.findall(
+        r"人生|岁月|时光|生命|灵魂|绽放|底气|活成|做自己|温柔以待|不负|治愈|"
+        r"从容优雅|内心的|世界会|终将|所谓|才是真正的",
+        tail,
+    )
+    if lofty:
+        fail(f"结尾出现升华大词 {lofty[:3]}，收尾要比正文更平更家常，不许上价值")
 
 
 def main():
@@ -229,7 +243,7 @@ def main():
     print(f"\n检查 {path}")
     print("-" * 46)
     check_images(text, expected)
-    check_length(text)
+    check_length(text, expected)
     check_para_variance(text)
     check_openers(text)
     check_limits(text)
